@@ -100,6 +100,29 @@ export class SalesService {
     return sales.map((sale) => this.toResponse(sale));
   }
 
+  async remove(id: string): Promise<{ id: string }> {
+    await this.prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findUnique({ where: { id } });
+      if (!sale) {
+        throw new NotFoundException('Sale not found');
+      }
+
+      await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${sale.productId} FOR UPDATE`;
+      const product = await tx.product.findUnique({ where: { id: sale.productId } });
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      await tx.sale.delete({ where: { id } });
+      await tx.product.update({
+        where: { id: product.id },
+        data: { currentStock: product.currentStock.add(sale.quantity) },
+      });
+    });
+
+    return { id };
+  }
+
   private toResponse(sale: SaleWithProduct): SaleResponse {
     return {
       id: sale.id,

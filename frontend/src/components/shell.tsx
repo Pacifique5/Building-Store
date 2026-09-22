@@ -95,7 +95,9 @@ export function Empty({ text }: { text: string }) {
 export const primaryButton =
   "inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#c4531a] px-4 text-base font-semibold text-white hover:bg-[#a34312] disabled:cursor-not-allowed disabled:bg-[#a8a29e]";
 export const quietButton =
-  "inline-flex h-10 items-center justify-center rounded-lg border border-[#e4d8c8] bg-white px-3 text-sm font-semibold text-[#143028] hover:bg-[#f6f1e7]";
+  "inline-flex h-10 items-center justify-center rounded-lg border border-[#e4d8c8] bg-white px-3 text-sm font-semibold text-[#143028] hover:bg-[#f6f1e7] disabled:cursor-not-allowed disabled:opacity-60";
+export const dangerButton =
+  "inline-flex h-12 w-full items-center justify-center rounded-xl border border-[#e7c1bc] bg-white px-4 text-base font-semibold text-[#b42318] hover:bg-[#fdeceb] disabled:cursor-not-allowed disabled:opacity-60";
 export const panelTitle = "border-b border-[#eadfce] px-4 py-3 text-lg font-semibold text-[#143028]";
 export const tableHead = "bg-[#f6f1e7] text-sm text-[#57534e]";
 export const tableRow = "border-t border-[#eadfce]";

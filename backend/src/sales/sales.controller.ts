@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { QuerySalesDto } from './dto/query-sales.dto';
 import { SalesService } from './sales.service';
@@ -15,5 +15,10 @@ export class SalesController {
   @Get()
   findAll(@Query() query: QuerySalesDto) {
     return this.salesService.findAll(query);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.salesService.remove(id);
   }
 }

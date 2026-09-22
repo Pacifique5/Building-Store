@@ -2,16 +2,34 @@
 
 import { ShoppingCart } from "lucide-react";
 import { useState } from "react";
+import { deleteSale } from "@/lib/api";
 import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
 import type { StoreData } from "@/lib/types";
 import { SaleForm } from "./store-forms";
-import { ApiError, Empty, lossText, mutedText, Notice, PageIntro, Panel, panelTitle, primaryButton, profitText, Shell, tableHead, tableRow } from "./shell";
+import { ApiError, Empty, lossText, mutedText, Notice, PageIntro, Panel, panelTitle, primaryButton, profitText, quietButton, Shell, tableHead, tableRow } from "./shell";
 import { useStore } from "./use-store";
 
 export function SalesSection({ initial }: { initial: StoreData }) {
   const { data, notice, refresh } = useStore(initial);
   const [open, setOpen] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const available = data.products.filter((product) => product.currentStock > 0);
+
+  async function removeSale(id: string, name: string) {
+    const confirmed = window.confirm(`Delete this sale of ${name}? The quantity goes back on the shelf, and the profit is removed.`);
+    if (!confirmed) return;
+    setRemovingId(id);
+    setActionError(null);
+    try {
+      await deleteSale(id);
+      await refresh("Sale deleted. The quantity is back on the shelf.");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not delete the sale");
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   return (
     <Shell>
@@ -26,6 +44,7 @@ export function SalesSection({ initial }: { initial: StoreData }) {
       />
       <ApiError message={data.error} onRetry={() => refresh()} />
       <Notice message={notice} />
+      {actionError ? <p className="rounded-3xl border border-[#e7c1bc] bg-[#fffdf8] px-4 py-3 text-[#b42318]">{actionError}</p> : null}
       {available.length === 0 ? (
         <p className="rounded-3xl border border-[#eadfce] bg-[#fffdf8] px-4 py-3 text-[#9a3412]">
           Nothing is in stock, so there is nothing to sell. Record a purchase in Stock first.
@@ -73,6 +92,7 @@ export function SalesSection({ initial }: { initial: StoreData }) {
                   <th className="px-4 py-3 font-semibold">Selling price</th>
                   <th className="px-4 py-3 font-semibold">Revenue</th>
                   <th className="px-4 py-3 font-semibold">Profit</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
@@ -88,6 +108,16 @@ export function SalesSection({ initial }: { initial: StoreData }) {
                     <td className="px-4 py-3">{formatMoney(sale.totalRevenue)}</td>
                     <td className={`px-4 py-3 ${sale.profit < 0 ? lossText : profitText}`}>
                       {formatMoney(sale.profit)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        className={`${quietButton} text-[#b42318]`}
+                        disabled={removingId === sale.id}
+                        onClick={() => removeSale(sale.id, sale.productName)}
+                      >
+                        {removingId === sale.id ? "Deleting..." : "Delete"}
+                      </button>
                     </td>
                   </tr>
                 ))}

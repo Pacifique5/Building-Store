@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Product } from '@prisma/client';
 import { stockStatus, toDecimal, toNumber } from '../common/numbers';
 import { PrismaService } from '../prisma/prisma.service';
@@ -121,15 +121,16 @@ export class ProductsService {
   }
 
   async remove(id: string): Promise<{ id: string }> {
-    await this.findOne(id);
-    const [purchases, sales] = await Promise.all([
-      this.prisma.stockPurchase.count({ where: { productId: id } }),
-      this.prisma.sale.count({ where: { productId: id } }),
-    ]);
-    if (purchases > 0 || sales > 0) {
-      throw new ConflictException('Product has stock history and cannot be deleted');
-    }
-    await this.prisma.product.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${id} FOR UPDATE`;
+      const product = await tx.product.findUnique({ where: { id } });
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+      await tx.sale.deleteMany({ where: { productId: id } });
+      await tx.stockPurchase.deleteMany({ where: { productId: id } });
+      await tx.product.delete({ where: { id } });
+    });
     return { id };
   }
 

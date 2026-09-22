@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { QueryPurchasesDto } from './dto/query-purchases.dto';
 import { PurchasesService } from './purchases.service';
@@ -15,5 +15,10 @@ export class PurchasesController {
   @Get()
   findAll(@Query() query: QueryPurchasesDto) {
     return this.purchasesService.findAll(query);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.purchasesService.remove(id);
   }
 }

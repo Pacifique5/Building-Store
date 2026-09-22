@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, StockPurchase } from '@prisma/client';
 import { parseOptionalDate, toDecimal, toNumber } from '../common/numbers';
 import { PrismaService } from '../prisma/prisma.service';
@@ -92,6 +92,43 @@ export class PurchasesService {
     return purchases.map((purchase) => this.toResponse(purchase));
   }
 
+  async remove(id: string): Promise<{ id: string }> {
+    await this.prisma.$transaction(async (tx) => {
+      const purchase = await tx.stockPurchase.findUnique({ where: { id } });
+      if (!purchase) {
+        throw new NotFoundException('Purchase not found');
+      }
+
+      await this.lockProduct(tx, purchase.productId);
+      const product = await tx.product.findUnique({ where: { id: purchase.productId } });
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      const newStock = product.currentStock.sub(purchase.quantity);
+      if (newStock.lt(0)) {
+        throw new BadRequestException('Some of this stock was already sold. Delete those sales first.');
+      }
+
+      await tx.stockPurchase.delete({ where: { id } });
+      await tx.product.update({
+        where: { id: product.id },
+        data: {
+          currentStock: newStock,
+          defaultBuyingPrice: this.previousAverageCost(
+            product.currentStock,
+            product.defaultBuyingPrice,
+            purchase.quantity,
+            purchase.unitBuyingPrice,
+            newStock,
+          ),
+        },
+      });
+    });
+
+    return { id };
+  }
+
   private nextAverageCost(
     currentStock: Prisma.Decimal,
     currentAverage: Prisma.Decimal,
@@ -104,6 +141,23 @@ export class PurchasesService {
     }
     const existingValue = currentStock.mul(currentAverage);
     return existingValue.add(quantity.mul(unitBuyingPrice)).div(newStock);
+  }
+
+  private previousAverageCost(
+    currentStock: Prisma.Decimal,
+    currentAverage: Prisma.Decimal,
+    quantity: Prisma.Decimal,
+    unitBuyingPrice: Prisma.Decimal,
+    newStock: Prisma.Decimal,
+  ): Prisma.Decimal {
+    if (newStock.lte(0)) {
+      return new Prisma.Decimal(0);
+    }
+    const remainingValue = currentStock.mul(currentAverage).sub(quantity.mul(unitBuyingPrice));
+    if (remainingValue.lte(0)) {
+      return new Prisma.Decimal(0);
+    }
+    return remainingValue.div(newStock);
   }
 
   private async lockProduct(tx: Prisma.TransactionClient, productId: string) {

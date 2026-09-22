@@ -3,10 +3,11 @@
 import { Droplets, PackagePlus, ShoppingCart, Tag } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { z } from "zod";
-import { createProduct, createPurchase, createSale, updateProduct } from "@/lib/api";
+import { createProduct, createPurchase, createSale, deleteProduct, updateProduct } from "@/lib/api";
 import { CATEGORIES, UNIT_GROUPS, UNITS, withCurrent } from "@/lib/catalog";
 import { formatMoney, formatQuantity } from "@/lib/format";
 import type { Product } from "@/lib/types";
+import { dangerButton } from "./shell";
 import { Field, fieldClass, FormError, Modal, SubmitButton } from "./modal";
 
 const productSchema = z.object({
@@ -64,13 +65,16 @@ export function ProductForm({
   categories,
   onClose,
   onSaved,
+  onDeleted,
 }: {
   product?: Product | null;
   categories: string[];
   onClose: () => void;
   onSaved: () => Promise<void>;
+  onDeleted: () => Promise<void>;
 }) {
   const [pending, setPending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState(product?.category ?? "");
   const [unit, setUnit] = useState(product?.unit ?? "");
@@ -105,6 +109,25 @@ export function ProductForm({
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Could not save the product");
       setPending(false);
+    }
+  }
+
+  async function onDelete() {
+    if (!product) return;
+    const confirmed = window.confirm(
+      `Delete ${product.name}? Its purchases and sales are removed too, and it leaves the shelf.`,
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteProduct(product.id);
+      await onDeleted();
+      onClose();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Could not delete the product");
+      setDeleting(false);
     }
   }
 
@@ -148,7 +171,12 @@ export function ProductForm({
           Liquids such as paint and primer are counted in cans, litres, tins, gallons, or drums.
         </p>
         <FormError message={error} />
-        <SubmitButton pending={pending}>{product ? "Save product" : "Add to the catalog"}</SubmitButton>
+        <SubmitButton pending={pending || deleting}>{product ? "Save product" : "Add to the catalog"}</SubmitButton>
+        {product ? (
+          <button type="button" className={dangerButton} disabled={pending || deleting} onClick={onDelete}>
+            {deleting ? "Deleting..." : "Delete product"}
+          </button>
+        ) : null}
       </form>
     </Modal>
   );

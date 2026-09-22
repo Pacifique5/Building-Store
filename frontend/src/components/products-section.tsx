@@ -100,6 +100,7 @@ export function ProductsSection({ initial }: { initial: StoreData }) {
           categories={categories}
           onClose={() => setOpen(false)}
           onSaved={() => refresh(editing ? "Product updated." : "Product added to the catalog.")}
+          onDeleted={() => refresh("Product deleted.")}
         />
       ) : null}
     </Shell>

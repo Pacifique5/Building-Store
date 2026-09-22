@@ -2,6 +2,7 @@
 
 import { PackagePlus } from "lucide-react";
 import { useState } from "react";
+import { deletePurchase } from "@/lib/api";
 import { formatDate, formatMoney, formatQuantity, stockLabel } from "@/lib/format";
 import type { StoreData } from "@/lib/types";
 import { PurchaseForm } from "./store-forms";
@@ -12,12 +13,29 @@ export function StockSection({ initial }: { initial: StoreData }) {
   const { data, notice, refresh } = useStore(initial);
   const [open, setOpen] = useState(false);
   const [productId, setProductId] = useState<string | undefined>();
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const onShelf = data.products.filter((product) => product.currentStock > 0);
   const missing = data.products.filter((product) => product.currentStock <= 0);
 
   function openPurchase(id?: string) {
     setProductId(id);
     setOpen(true);
+  }
+
+  async function removePurchase(id: string, name: string) {
+    const confirmed = window.confirm(`Delete this purchase of ${name}? The quantity comes off the shelf.`);
+    if (!confirmed) return;
+    setRemovingId(id);
+    setActionError(null);
+    try {
+      await deletePurchase(id);
+      await refresh("Purchase deleted. The shelf quantity is updated.");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not delete the purchase");
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   return (
@@ -33,6 +51,7 @@ export function StockSection({ initial }: { initial: StoreData }) {
       />
       <ApiError message={data.error} onRetry={() => refresh()} />
       <Notice message={notice} />
+      {actionError ? <p className="rounded-3xl border border-[#e7c1bc] bg-[#fffdf8] px-4 py-3 text-[#b42318]">{actionError}</p> : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <article className={statCard}>
           <p className="text-sm font-semibold uppercase tracking-wide text-[#78716c]">High stock</p>
@@ -117,6 +136,7 @@ export function StockSection({ initial }: { initial: StoreData }) {
                   <th className="px-4 py-3 font-semibold">Buying price</th>
                   <th className="px-4 py-3 font-semibold">Total cost</th>
                   <th className="px-4 py-3 font-semibold">Supplier</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
@@ -128,6 +148,16 @@ export function StockSection({ initial }: { initial: StoreData }) {
                     <td className="px-4 py-3">{formatMoney(purchase.unitBuyingPrice)}</td>
                     <td className="px-4 py-3">{formatMoney(purchase.totalCost)}</td>
                     <td className="px-4 py-3">{purchase.supplierName || "—"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        className={`${quietButton} text-[#b42318]`}
+                        disabled={removingId === purchase.id}
+                        onClick={() => removePurchase(purchase.id, purchase.productName)}
+                      >
+                        {removingId === purchase.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

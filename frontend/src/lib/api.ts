@@ -65,10 +65,22 @@ export function updateProduct(id: string, body: Record<string, unknown>) {
   return request<Product>(`/products/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 }
 
+export function deleteProduct(id: string) {
+  return request<{ id: string }>(`/products/${id}`, { method: "DELETE" });
+}
+
 export function createPurchase(body: Record<string, unknown>) {
   return request<Purchase>("/purchases", { method: "POST", body: JSON.stringify(body) });
 }
 
+export function deletePurchase(id: string) {
+  return request<{ id: string }>(`/purchases/${id}`, { method: "DELETE" });
+}
+
 export function createSale(body: Record<string, unknown>) {
   return request<Sale>("/sales", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function deleteSale(id: string) {
+  return request<{ id: string }>(`/sales/${id}`, { method: "DELETE" });
 }

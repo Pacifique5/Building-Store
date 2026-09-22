@@ -1,0 +1,104 @@
+"use client";
+
+import { ShoppingCart } from "lucide-react";
+import { useState } from "react";
+import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
+import type { StoreData } from "@/lib/types";
+import { SaleForm } from "./store-forms";
+import { ApiError, Empty, lossText, mutedText, Notice, PageIntro, Panel, panelTitle, primaryButton, profitText, Shell, tableHead, tableRow } from "./shell";
+import { useStore } from "./use-store";
+
+export function SalesSection({ initial }: { initial: StoreData }) {
+  const { data, notice, refresh } = useStore(initial);
+  const [open, setOpen] = useState(false);
+  const available = data.products.filter((product) => product.currentStock > 0);
+
+  return (
+    <Shell>
+      <PageIntro
+        title="Sales"
+        text="Sell products that are on the shelf. You set the selling price, and the profit is revenue minus the buying cost."
+        action={
+          <button type="button" className={primaryButton} onClick={() => setOpen(true)} disabled={available.length === 0}>
+            <ShoppingCart size={18} /> New sale
+          </button>
+        }
+      />
+      <ApiError message={data.error} onRetry={() => refresh()} />
+      <Notice message={notice} />
+      {available.length === 0 ? (
+        <p className="rounded-3xl border border-[#eadfce] bg-[#fffdf8] px-4 py-3 text-[#9a3412]">
+          Nothing is in stock, so there is nothing to sell. Record a purchase in Stock first.
+        </p>
+      ) : null}
+      <Panel>
+        <h2 className={panelTitle}>Ready to sell</h2>
+        {available.length === 0 ? (
+          <Empty text="No products have a remaining quantity." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-base">
+              <thead className={tableHead}>
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Product</th>
+                  <th className="px-4 py-3 font-semibold">Available</th>
+                  <th className="px-4 py-3 font-semibold">Suggested price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {available.map((product) => (
+                  <tr key={product.id} className={tableRow}>
+                    <td className="px-4 py-3 font-semibold">{product.name}</td>
+                    <td className="px-4 py-3">{formatQuantity(product.currentStock, product.unit)}</td>
+                    <td className="px-4 py-3">{formatMoney(product.defaultSellingPrice)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+      <Panel>
+        <h2 className={panelTitle}>Sales made</h2>
+        {data.sales.length === 0 ? (
+          <Empty text="No sales yet." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-base">
+              <thead className={tableHead}>
+                <tr>
+                  <th className="px-4 py-3 font-semibold">When</th>
+                  <th className="px-4 py-3 font-semibold">Product</th>
+                  <th className="px-4 py-3 font-semibold">Quantity</th>
+                  <th className="px-4 py-3 font-semibold">Selling price</th>
+                  <th className="px-4 py-3 font-semibold">Revenue</th>
+                  <th className="px-4 py-3 font-semibold">Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.sales.map((sale) => (
+                  <tr key={sale.id} className={tableRow}>
+                    <td className="px-4 py-3">{formatDate(sale.date)}</td>
+                    <td className="px-4 py-3">
+                      {sale.productName}
+                      {sale.customerName ? <span className={`block ${mutedText}`}>{sale.customerName}</span> : null}
+                    </td>
+                    <td className="px-4 py-3">{formatQuantity(sale.quantity, sale.unit)}</td>
+                    <td className="px-4 py-3">{formatMoney(sale.unitSellingPrice)}</td>
+                    <td className="px-4 py-3">{formatMoney(sale.totalRevenue)}</td>
+                    <td className={`px-4 py-3 ${sale.profit < 0 ? lossText : profitText}`}>
+                      {formatMoney(sale.profit)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+      {open ? (
+        <SaleForm products={available} onClose={() => setOpen(false)} onSaved={() => refresh("Sale saved. Stock is reduced and profit is recorded.")} />
+      ) : null}
+    </Shell>
+  );
+}
